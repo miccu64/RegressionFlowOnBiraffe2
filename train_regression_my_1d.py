@@ -101,8 +101,8 @@ def main():
     # override args in order to debug
     args.gpu = 0
     args.log_name = 'my_test'
-    args.lr = 2e-5
-    args.epochs = 2
+    args.lr = 2e-3
+    args.epochs = 10
     args.batch_size = 100
     args.num_blocks = 1
     args.input_dim = 1

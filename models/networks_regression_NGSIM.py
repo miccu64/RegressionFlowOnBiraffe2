@@ -217,6 +217,7 @@ class highwayNet(nn.Module):
         nbrs_enc = nbrs_enc.view(nbrs_enc.shape[1], nbrs_enc.shape[2])
 
         ## Masked scatter
+        masks = masks.bool()
         soc_enc = torch.zeros_like(masks).float()
         soc_enc = soc_enc.masked_scatter_(masks, nbrs_enc)
         soc_enc = soc_enc.permute(0,3,2,1)
