@@ -8,6 +8,13 @@ import numpy as np
 
 
 def main(args):
+    args.resume_checkpoint = 'checkpoints/experiment_regression_flow_NGSIM/checkpoint-latest.pt'
+    args.num_blocks = 1
+    args.gpu = 0
+    args.dims = '16-16-16'
+    args.input_dim = 2
+    args.data_dir = 'data/NGSIM'
+
     model = HyperRegression(args)
     model = model.to(args.gpu)
     resume_checkpoint = args.resume_checkpoint

@@ -72,7 +72,8 @@ def main_worker(gpu, save_dir, ngpus_per_node, args):
         print("[Rank %d] World size : %d" % (args.rank, dist.get_world_size()))
 
     print("Start epoch: %d End epoch: %d" % (start_epoch, args.epochs))
-    data = ngsimDataset(os.path.join(args.data_dir, 'TrainSet.mat'))
+    # TODO: changed next line - to revert
+    data = ngsimDataset(os.path.join(args.data_dir, 'ValSet.mat'))
     train_loader = torch.utils.data.DataLoader(data, batch_size=args.batch_size,
                                                shuffle=True,num_workers=8, collate_fn=data.collate_fn)
     for epoch in range(start_epoch, args.epochs):
