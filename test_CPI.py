@@ -17,6 +17,13 @@ CPI_HEIGHT = 512
 
 
 def main(args):
+    args.data_dir = "data/CPI"
+    args.resume_checkpoint = 'checkpoints/experiment_regression_flow_CPI/checkpoint-latest.pt'
+    args.num_blocks = 1
+    args.gpu = 0
+    args.dims = '128-128-128'
+    args.input_dim = 2
+
     model = HyperRegression(args, input_width=CPI_WIDTH, input_height=CPI_HEIGHT)
     model = model.cuda()
     resume_checkpoint = args.resume_checkpoint

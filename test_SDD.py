@@ -27,6 +27,13 @@ def get_grid_logprob(
 
 
 def main(args):
+    args.gpu = 0
+    args.num_blocks = 1
+    args.input_dim = 2
+    args.dims = '128-128-128'
+    args.data_dir = 'data/SDD'
+    args.resume_checkpoint = 'checkpoints/experiment_regression_flow_SSD/checkpoint-latest.pt'
+
     model = HyperRegression(args)
     model = model.cuda()
     resume_checkpoint = args.resume_checkpoint

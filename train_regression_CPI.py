@@ -137,6 +137,19 @@ def main_worker(gpu, save_dir, ngpus_per_node, args):
 def main():
     # command line args
     args = get_args()
+
+    args.log_name = "experiment_regression_flow_CPI"
+    args.num_block = 1
+    args.batch_size = 10
+    args.epochs = 2
+    args.save_freq = 1
+    args.viz_freq = 1
+    args.log_freq = 1
+    args.gpu = 0
+    args.dims = '128-128-128'
+    args.input_dim = 2
+    args.data_dir = 'data/CPI'
+
     if args.root_dir is None:
         save_dir = os.path.join("checkpoints", args.log_name)
     else:
