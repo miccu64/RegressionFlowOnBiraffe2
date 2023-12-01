@@ -13,8 +13,8 @@ class Biraffe2Dataset(Dataset):
             self.x_tensor = self.__normalize_dataframe_to_tensor(normalized_dataframe[self.x_columns])
             return
 
-        data_folder = '../../data/BIRAFFE2/allData/singleSample/'
-
+        data_folder = 'data/BIRAFFE2/allData/singleSample/'
+        
         face_dataframe = self.__prepare_csv_dataframe(data_folder + 'sample-SUB211-Face.csv', 'GAME-TIMESTAMP')
         gamepad_dataframe = self.__prepare_csv_dataframe(data_folder + 'sample-SUB211-Gamepad.csv', 'TIMESTAMP')
         log_dataframe = self.__prepare_json_log_dataframe(data_folder + 'sample-SUB211-Level01_Log.json')
@@ -86,6 +86,3 @@ class Biraffe2Dataset(Dataset):
         mean = tensor.mean(dim=0)
         std = tensor.std(dim=0)
         return (tensor - mean) / std
-
-
-biraffe = Biraffe2Dataset()

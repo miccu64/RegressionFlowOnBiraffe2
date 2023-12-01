@@ -9,8 +9,8 @@ import random
 import faulthandler
 import time
 
-from biraffe2.biraffe2_dataset import Biraffe2Dataset
-from models.networks_regression import HyperRegression
+from data_regression_biraffe2 import Biraffe2Dataset
+from models.networks_regression_biraffe2 import HyperRegression
 from args import get_args
 from torch.backends import cudnn
 from utils import AverageValueMeter, set_random_seed, resume, save
@@ -59,8 +59,10 @@ def main_worker(gpu, save_dir, args):
             num_workers=0, pin_memory=True)
         for bidx, data in enumerate(train_loader):
             x, y = data
-            x = x.float().to(args.gpu).unsqueeze(1)
-            y = y.float().to(args.gpu).unsqueeze(1).unsqueeze(2)
+            x = x.float().to(args.gpu)#.unsqueeze(1)
+            y = y.float().to(args.gpu)#.unsqueeze(1).unsqueeze(2)
+            print(x.shape)
+            print(y.shape)
             step = bidx + len(train_loader) * epoch
             model.train()
             recon_nats = model(x, y, optimizer, step, None)
@@ -102,13 +104,18 @@ def main():
     args.gpu = 0
     args.log_name = 'biraffe2'
     args.lr = 2e-3
-    args.epochs = 10
-    args.batch_size = 100
+    args.epochs = 2
+    args.batch_size = 5
     args.num_blocks = 1
     args.input_dim = 1
     args.viz_freq = 1
     args.save_freq = 1
     args.log_freq = 1
+
+    args.input_size = 11
+    args.output_size = 8
+    #args.hyper_dims='121'
+    #args.dims = '16-16-8'
 
     save_dir = os.path.join("checkpoints", args.log_name)
     if not os.path.exists(save_dir):

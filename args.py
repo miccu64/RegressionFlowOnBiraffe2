@@ -97,6 +97,10 @@ def add_args(parser):
                         help='Number of data loading threads')
     parser.add_argument('--use_all_data', action='store_true',
                         help='Use entire dataset')
+    parser.add_argument('--input_size', type=int, default=None,
+                        help='Size of input columns')
+    parser.add_argument('--output_size', type=int, default=None,
+                        help='Size of output columns')
 
     # logging and saving frequency
     parser.add_argument('--log_name', type=str, default=None, help="Name for the log dir")
