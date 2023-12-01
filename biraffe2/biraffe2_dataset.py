@@ -4,6 +4,42 @@ from torch.utils.data import Dataset
 
 
 class Biraffe2Dataset(Dataset):
+    def __init__(self, load_ready_dataset: bool = False):
+        if load_ready_dataset:
+            normalized_dataframe = pd.read_csv('sample-SUB211-normalized.csv')
+            self.y_columns = ['ANGER', 'CONTEMPT', 'DISGUST', 'FEAR', 'HAPPINESS', 'NEUTRAL', 'SADNESS', 'SURPRISE']
+            self.x_columns = [col for col in normalized_dataframe.columns.tolist() if col not in self.y_columns]
+            self.y_tensor = self.__normalize_dataframe_to_tensor(normalized_dataframe[self.y_columns])
+            self.x_tensor = self.__normalize_dataframe_to_tensor(normalized_dataframe[self.x_columns])
+            return
+
+        data_folder = '../../data/BIRAFFE2/allData/singleSample/'
+
+        face_dataframe = self.__prepare_csv_dataframe(data_folder + 'sample-SUB211-Face.csv', 'GAME-TIMESTAMP')
+        gamepad_dataframe = self.__prepare_csv_dataframe(data_folder + 'sample-SUB211-Gamepad.csv', 'TIMESTAMP')
+        log_dataframe = self.__prepare_json_log_dataframe(data_folder + 'sample-SUB211-Level01_Log.json')
+
+        full_dataframe = pd.concat([gamepad_dataframe, face_dataframe, log_dataframe], axis=1, join='inner')
+
+        self.y_columns = face_dataframe.columns.tolist()
+        self.x_columns = [col for col in full_dataframe.columns.tolist() if col not in self.y_columns]
+        correlated_cols = ['XMAX', 'YMAX', 'GYR-X', 'SHOOTSCOUNTER', 'HITCOUNTER', 'MONEY', 'COLLECTEDMONEY',
+                           'COLLECTEDHEALTH']
+        self.x_columns = [col for col in self.x_columns if col not in correlated_cols]
+
+        self.x_tensor = self.__normalize_dataframe_to_tensor(full_dataframe[self.x_columns])
+        self.y_tensor = self.__normalize_dataframe_to_tensor(full_dataframe[self.y_columns])
+
+        normalized_dataframe = pd.DataFrame(torch.cat((self.x_tensor, self.y_tensor), dim=1),
+                                            columns=self.x_columns + self.y_columns)
+        normalized_dataframe.to_csv('sample-SUB211-normalized.csv')
+
+    def __len__(self):
+        return len(self.x_tensor)
+
+    def __getitem__(self, idx):
+        return self.x_tensor[idx], self.y_tensor[idx]
+
     def __nans_delete(self, dataframe: pd.DataFrame, timestamp_column_name: str) -> pd.DataFrame:
         # delete rows having NaN timestamp
         dataframe = dataframe.dropna(subset=[timestamp_column_name])
@@ -45,40 +81,11 @@ class Biraffe2Dataset(Dataset):
 
         return log_dataframe
 
-    def __init__(self):
-        data_folder = '../../data/BIRAFFE2/allData/singleSample/'
-
-        face_dataframe = self.__prepare_csv_dataframe(data_folder + 'sample-SUB211-Face.csv', 'GAME-TIMESTAMP')
-        gamepad_dataframe = self.__prepare_csv_dataframe(data_folder + 'sample-SUB211-Gamepad.csv', 'TIMESTAMP')
-        log_dataframe = self.__prepare_json_log_dataframe(data_folder + 'sample-SUB211-Level01_Log.json')
-
-        full_dataframe = pd.concat([gamepad_dataframe, face_dataframe, log_dataframe], axis=1, join='inner')
-
-        tensor = torch.tensor(full_dataframe.values)
+    def __normalize_dataframe_to_tensor(self, dataframe: pd.DataFrame) -> torch.Tensor:
+        tensor = torch.tensor(dataframe.values)
         mean = tensor.mean(dim=0)
         std = tensor.std(dim=0)
-        normalized_tensor = (tensor - mean) / std
-
-        y_columns = face_dataframe.columns.tolist()
-        x_columns = full_dataframe.columns.tolist()
-        x_columns = [element for element in x_columns if element not in y_columns]
-
-        import seaborn as sns
-        import matplotlib.pyplot as plt
-        # %matplotlib inline
-        corr = abs(pd.DataFrame(normalized_tensor).corr())
-
-        # plot the heatmap
-        sns.heatmap(corr)
-        plt.show()
-
-        a = 0
-
-    # def __len__(self):
-    #     return len(self.train_points)
-    #
-    # def __getitem__(self, idx):
-    #     return self.train_points[idx, 0], self.train_points[idx, 1]
+        return (tensor - mean) / std
 
 
 biraffe = Biraffe2Dataset()
