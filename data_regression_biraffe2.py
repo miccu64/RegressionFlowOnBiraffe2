@@ -21,14 +21,17 @@ class Biraffe2Dataset(Dataset):
 
         full_dataframe = pd.concat([gamepad_dataframe, face_dataframe, log_dataframe], axis=1, join='inner')
 
-        self.y_columns = face_dataframe.columns.tolist()
-        self.x_columns = [col for col in full_dataframe.columns.tolist() if col not in self.y_columns]
+        emotion_dataframe = self.__emotion_to_arousal_valence(full_dataframe[face_dataframe.columns.tolist()])
+        self.y_columns = emotion_dataframe.columns.tolist()
+        self.y_tensor = self.__normalize_dataframe_to_tensor(emotion_dataframe)
+        
+        self.x_columns = [col for col in full_dataframe.columns.tolist() if col not in self.y_columns + face_dataframe.columns.tolist()]
         correlated_cols = ['XMAX', 'YMAX', 'GYR-X', 'SHOOTSCOUNTER', 'HITCOUNTER', 'MONEY', 'COLLECTEDMONEY',
                            'COLLECTEDHEALTH']
         self.x_columns = [col for col in self.x_columns if col not in correlated_cols]
 
         self.x_tensor = self.__normalize_dataframe_to_tensor(full_dataframe[self.x_columns])
-        self.y_tensor = self.__normalize_dataframe_to_tensor(full_dataframe[self.y_columns])
+
 
         normalized_dataframe = pd.DataFrame(torch.cat((self.x_tensor, self.y_tensor), dim=1),
                                             columns=self.x_columns + self.y_columns)
@@ -39,6 +42,18 @@ class Biraffe2Dataset(Dataset):
 
     def __getitem__(self, idx):
         return self.x_tensor[idx], self.y_tensor[idx]
+    
+    def __emotion_to_arousal_valence(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        arousal_mapping = {'FEAR': 1, 'SURPRISE': 1, 'ANGER': 0.7, 'DISGUST': 0.7, 'HAPPINESS': 0.3, 'NEUTRAL': 0.5, 'SADNESS': 0.3, 'CONTEMPT': 0.7}
+        valence_mapping = {'HAPPINESS': 1, 'SURPRISE': 1, 'NEUTRAL': 0.5, 'ANGER': 0, 'DISGUST': 0, 'FEAR': 0, 'SADNESS': 0, 'CONTEMPT': 0}
+
+        results = []
+        for _, data in dataframe.iterrows():
+            arousal = sum(arousal_mapping[emotion] * value for emotion, value in data.items())
+            valence = sum(valence_mapping[emotion] * value for emotion, value in data.items())
+            results.append([arousal, valence])
+
+        return pd.DataFrame(results, columns=['AROUSAL', 'VALENCE'])
 
     def __nans_delete(self, dataframe: pd.DataFrame, timestamp_column_name: str) -> pd.DataFrame:
         # delete rows having NaN timestamp

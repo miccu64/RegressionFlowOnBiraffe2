@@ -101,9 +101,13 @@ def build_hyper(args, num_blocks, conditional):
 
     chain = [build_cnf() for _ in range(num_blocks)]
     if args.batch_norm:
-        bn_layers = [MovingBatchNorm1d(args.input_dim, bn_lag=args.bn_lag, sync=args.sync_bn)
+        features_count = args.output_size
+        if features_count is None:
+            features_count = args.input_dim
+
+        bn_layers = [MovingBatchNorm1d(features_count, bn_lag=args.bn_lag, sync=args.sync_bn)
                      for _ in range(num_blocks)]
-        bn_chain = [MovingBatchNorm1d(args.input_dim, bn_lag=args.bn_lag, sync=args.sync_bn)]
+        bn_chain = [MovingBatchNorm1d(features_count, bn_lag=args.bn_lag, sync=args.sync_bn)]
         for a, b in zip(chain, bn_layers):
             bn_chain.append(a)
             bn_chain.append(b)

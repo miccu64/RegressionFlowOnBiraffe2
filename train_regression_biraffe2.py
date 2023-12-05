@@ -60,7 +60,7 @@ def main_worker(gpu, save_dir, args):
         for bidx, data in enumerate(train_loader):
             x, y = data
             x = x.float().to(args.gpu)#.unsqueeze(1)
-            y = y.float().to(args.gpu)#.unsqueeze(1).unsqueeze(2)
+            y = y.float().to(args.gpu).unsqueeze(1)#.unsqueeze(2)
             print(x.shape)
             print(y.shape)
             step = bidx + len(train_loader) * epoch
@@ -107,13 +107,13 @@ def main():
     args.epochs = 2
     args.batch_size = 5
     args.num_blocks = 1
-    args.input_dim = 1
+    args.input_dim = 2
     args.viz_freq = 1
     args.save_freq = 1
     args.log_freq = 1
 
     args.input_size = 11
-    args.output_size = 8
+    args.output_size = 2
     #args.hyper_dims='121'
     #args.dims = '16-16-8'
 
