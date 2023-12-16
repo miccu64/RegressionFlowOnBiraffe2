@@ -42,10 +42,10 @@ class Biraffe2Dataset(Dataset):
 
     def __getitem__(self, idx):
         return self.x_tensor[idx], self.y_tensor[idx]
-    
+    #happindess
     def __emotion_to_arousal_valence(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        arousal_mapping = {'FEAR': 1, 'SURPRISE': 1, 'ANGER': 0.7, 'DISGUST': 0.7, 'HAPPINESS': 0.3, 'NEUTRAL': 0.5, 'SADNESS': 0.3, 'CONTEMPT': 0.7}
-        valence_mapping = {'HAPPINESS': 1, 'SURPRISE': 1, 'NEUTRAL': 0.5, 'ANGER': 0, 'DISGUST': 0, 'FEAR': 0, 'SADNESS': 0, 'CONTEMPT': 0}
+        arousal_mapping = {'FEAR': 0.7, 'SURPRISE': 0.45, 'ANGER': 0.25, 'DISGUST': -0.45,'HAPPINESS': 0.5, 'NEUTRAL': 0.0, 'SADNESS': -0.3, 'CONTEMPT': -0.7}
+        valence_mapping = {'FEAR': -0.2,'SURPRISE': 0.75, 'ANGER': -0.7, 'DISGUST': -0.2, 'HAPPINESS': 0.7, 'NEUTRAL': 0.0, 'SADNESS': -0.7, 'CONTEMPT': -0.2}
 
         results = []
         for _, data in dataframe.iterrows():
@@ -98,6 +98,10 @@ class Biraffe2Dataset(Dataset):
 
     def __normalize_dataframe_to_tensor(self, dataframe: pd.DataFrame) -> torch.Tensor:
         tensor = torch.tensor(dataframe.values)
-        mean = tensor.mean(dim=0)
-        std = tensor.std(dim=0)
-        return (tensor - mean) / std
+
+        min_vals, _ = torch.min(tensor, dim=0, keepdim=True)
+        max_vals, _ = torch.max(tensor, dim=0, keepdim=True)
+        # scale and shift to the range [-1, 1]
+        normalized_tensor = -1 + 2 * (tensor - min_vals) / (max_vals - min_vals)
+
+        return normalized_tensor

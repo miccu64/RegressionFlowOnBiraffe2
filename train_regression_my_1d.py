@@ -102,8 +102,8 @@ def main():
     args.gpu = 0
     args.log_name = 'my_test'
     args.lr = 2e-3
-    args.epochs = 10
-    args.batch_size = 100
+    args.epochs = 2
+    args.batch_size = 512
     args.num_blocks = 1
     args.input_dim = 1
     args.viz_freq = 1

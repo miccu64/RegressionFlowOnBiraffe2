@@ -53,10 +53,15 @@ def main_worker(gpu, save_dir, args):
     print("Start epoch: %d End epoch: %d" % (start_epoch, args.epochs))
     for epoch in range(start_epoch, args.epochs):
         print("Epoch starts:")
-        data = Biraffe2Dataset()
+        train_data = Biraffe2Dataset()
         train_loader = torch.utils.data.DataLoader(
-            dataset=data, batch_size=args.batch_size, shuffle=True,
+            dataset=train_data, batch_size=args.batch_size, shuffle=True,
             num_workers=0, pin_memory=True)
+        test_data = Biraffe2Dataset()
+        test_loader = torch.utils.data.DataLoader(
+            dataset=test_data, batch_size=args.batch_size, shuffle=True,
+            num_workers=0, pin_memory=True)
+        
         for bidx, data in enumerate(train_loader):
             x, y = data
             x = x.float().to(args.gpu)#.unsqueeze(1)
@@ -73,22 +78,23 @@ def main_worker(gpu, save_dir, args):
                 print("[Rank %d] Epoch %d Batch [%2d/%2d] Time [%3.2fs] PointNats %2.5f"
                       % (args.rank, epoch, bidx, len(train_loader),duration, point_nats_avg_meter.avg))
         # save visualizations
-        kk = 3
         if (epoch + 1) % args.viz_freq == 0:
             # reconstructions
             model.eval()
-            x = torch.from_numpy(np.linspace(0, kk, num=100)).float().to(args.gpu).unsqueeze(1)
-            _, y = model.decode(x, 100)
-            x = x.cpu().detach().numpy()
-            y = y.cpu().detach().numpy()
-            x = np.expand_dims(x, 1).repeat(100, axis=1).flatten()
-            y = y.flatten()
-            figs, axs = plt.subplots(1, 1, figsize=(12, 12))
-            plt.xlim([0, kk])
-            plt.ylim([-2, 2])
-            plt.scatter(x, y)
-            plt.savefig(os.path.join(save_dir, 'images', 'tr_vis_sampled_epoch%d-gpu%s.png' % (epoch, args.gpu)))
-            plt.clf()
+            for bidx, data in enumerate(test_loader):
+                x, _ = data
+                x = x.float().to(args.gpu)
+                _, y = model.decode(x, 100)
+                #x = x.cpu().detach().numpy()
+                y = y.cpu().detach().numpy()
+                #x = np.expand_dims(x, 1).repeat(100, axis=1).flatten()
+                y = y.flatten()
+                figs, axs = plt.subplots(1, 1, figsize=(12, 12))
+                plt.xlim([-1, 1])
+                plt.ylim([-1, 1])
+                plt.scatter(x, y)
+                plt.savefig(os.path.join(save_dir, 'images', 'tr_vis_sampled_epoch%d-gpu%s.png' % (epoch, args.gpu)))
+                plt.clf()
         if (epoch + 1) % args.save_freq == 0:
             save(model, optimizer, epoch + 1,
                  os.path.join(save_dir, 'checkpoint-%d.pt' % epoch))
@@ -105,7 +111,7 @@ def main():
     args.log_name = 'biraffe2'
     args.lr = 2e-3
     args.epochs = 2
-    args.batch_size = 5
+    args.batch_size = 128
     args.num_blocks = 1
     args.input_dim = 2
     args.viz_freq = 1
