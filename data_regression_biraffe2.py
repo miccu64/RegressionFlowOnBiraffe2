@@ -49,11 +49,11 @@ class Biraffe2Dataset(Dataset):
 
         results = []
         for _, data in dataframe.iterrows():
-            arousal = sum(arousal_mapping[emotion] * value for emotion, value in data.items())
             valence = sum(valence_mapping[emotion] * value for emotion, value in data.items())
-            results.append([arousal, valence])
+            arousal = sum(arousal_mapping[emotion] * value for emotion, value in data.items())
+            results.append([valence, arousal])
 
-        return pd.DataFrame(results, columns=['AROUSAL', 'VALENCE'])
+        return pd.DataFrame(results, columns=['VALENCE', 'AROUSAL'])
 
     def __nans_delete(self, dataframe: pd.DataFrame, timestamp_column_name: str) -> pd.DataFrame:
         # delete rows having NaN timestamp

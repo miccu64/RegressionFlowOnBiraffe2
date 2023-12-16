@@ -59,7 +59,7 @@ def main_worker(gpu, save_dir, args):
             num_workers=0, pin_memory=True)
         test_data = Biraffe2Dataset()
         test_loader = torch.utils.data.DataLoader(
-            dataset=test_data, batch_size=args.batch_size, shuffle=True,
+            dataset=test_data, batch_size=1, shuffle=True,
             num_workers=0, pin_memory=True)
         
         for bidx, data in enumerate(train_loader):
@@ -84,17 +84,19 @@ def main_worker(gpu, save_dir, args):
             for bidx, data in enumerate(test_loader):
                 x, _ = data
                 x = x.float().to(args.gpu)
-                _, y = model.decode(x, 100)
-                #x = x.cpu().detach().numpy()
-                y = y.cpu().detach().numpy()
-                #x = np.expand_dims(x, 1).repeat(100, axis=1).flatten()
-                y = y.flatten()
+                _, y_pred = model.decode(x, 100)
+                y_pred = y_pred.cpu().detach().numpy()
+                y_pred = y_pred.squeeze()
+                valence = y_pred[:, 0]
+                arousal = y_pred[:, 1]
+                #y = y.flatten()
                 figs, axs = plt.subplots(1, 1, figsize=(12, 12))
                 plt.xlim([-1, 1])
                 plt.ylim([-1, 1])
-                plt.scatter(x, y)
-                plt.savefig(os.path.join(save_dir, 'images', 'tr_vis_sampled_epoch%d-gpu%s.png' % (epoch, args.gpu)))
+                plt.scatter(valence, arousal)
+                plt.savefig(os.path.join(save_dir, 'images', 'result_epoch%d_%d.png' % (epoch, bidx)))
                 plt.clf()
+                plt.close()
         if (epoch + 1) % args.save_freq == 0:
             save(model, optimizer, epoch + 1,
                  os.path.join(save_dir, 'checkpoint-%d.pt' % epoch))
