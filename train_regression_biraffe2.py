@@ -7,6 +7,7 @@ import torch.distributed
 import random
 import faulthandler
 import time
+from biraffe2_helpers.biraffe2_prepare_data import biraffe2_prepare_data
 
 from data_regression_biraffe2 import Biraffe2Dataset
 from models.networks_regression_biraffe2 import HyperRegression
@@ -14,6 +15,7 @@ from args import get_args
 from torch.backends import cudnn
 from utils import AverageValueMeter, set_random_seed, resume, save
 import matplotlib.pyplot as plt
+from torch import optim
 
 
 faulthandler.enable()
@@ -25,6 +27,19 @@ def main_worker(gpu, save_dir, args):
     args.gpu = gpu
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
+
+    train_data = Biraffe2Dataset(True)
+    train_loader = torch.utils.data.DataLoader(
+        dataset=train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True
+    )
+    test_data = Biraffe2Dataset(True)
+    test_loader = torch.utils.data.DataLoader(
+        dataset=test_data, batch_size=1, shuffle=True, num_workers=0, pin_memory=True
+    )
+
+    args.input_size = len(train_data.x_columns)
+    args.output_size = len(train_data.y_columns)
+    args.input_dim = 2
 
     model = HyperRegression(args)
 
@@ -45,6 +60,20 @@ def main_worker(gpu, save_dir, args):
             )
         print("Resumed from: " + args.resume_checkpoint)
 
+    
+    # initialize the learning rate scheduler
+    if args.scheduler == 'exponential':
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, args.exp_decay)
+    elif args.scheduler == 'step':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.epochs // 2, gamma=0.1)
+    elif args.scheduler == 'linear':
+        def lambda_rule(ep):
+            lr_l = 1.0 - max(0, ep - 0.5 * args.epochs) / float(0.5 * args.epochs)
+            return lr_l
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule)
+    else:
+        assert 0, "args.schedulers should be either 'exponential' or 'linear'"
+
     # main training loop
     start_time = time.time()
     point_nats_avg_meter = AverageValueMeter()
@@ -53,16 +82,11 @@ def main_worker(gpu, save_dir, args):
 
     print("Start epoch: %d End epoch: %d" % (start_epoch, args.epochs))
     for epoch in range(start_epoch, args.epochs):
-        print("Epoch starts:")
-        train_data = Biraffe2Dataset(True)
-        train_loader = torch.utils.data.DataLoader(
-            dataset=train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True
-        )
-        test_data = Biraffe2Dataset(True)
-        test_loader = torch.utils.data.DataLoader(
-            dataset=test_data, batch_size=1, shuffle=True, num_workers=0, pin_memory=True
-        )
+        # adjust the learning rate
+        if (epoch + 1) % args.exp_decay_freq == 0:
+            scheduler.step(epoch=epoch)
 
+        print("Epoch starts:")
         for bidx, data in enumerate(train_loader):
             x, y = data
             x = x.float().to(args.gpu)
@@ -97,17 +121,8 @@ def main_worker(gpu, save_dir, args):
 
                 filepath = os.path.join(save_dir, "images", "result_epoch%d_%d.png" % (epoch, bidx))
                 plt.savefig(filepath)
-                plt.clf()
                 plt.close()
 
-                # objects_list = last_4_x[0:3]
-                # objects = np.stack(objects_list, axis=0)
-                # gt_object = last_4_x[-1]
-
-                # drawn_img_hyps = draw_hyps(filepath, y_pred, gt_object, objects, False)
-                # cv2.imwrite(os.path.join(save_dir, 'images', str(bidx) + '-' + str(epoch) + '-hyps.jpg'), drawn_img_hyps)
-
-                # last_4_x.pop(0)
         if (epoch + 1) % args.save_freq == 0:
             save(model, optimizer, epoch + 1, os.path.join(save_dir, "checkpoint-%d.pt" % epoch))
             save(model, optimizer, epoch + 1, os.path.join(save_dir, "checkpoint-latest.pt"))
@@ -121,19 +136,12 @@ def main():
     args.gpu = 0
     args.log_name = "biraffe2"
     args.lr = 2e-3
-    args.epochs = 2
+    args.epochs = 3
     args.batch_size = 128
     args.num_blocks = 1
-    args.input_dim = 2
     args.viz_freq = 1
     args.save_freq = 1
     args.log_freq = 1
-
-    # TODO: try to get rid of this (should be dynamic value taken from data)
-    args.input_size = 11
-    args.output_size = 2
-    # args.hyper_dims='121'
-    # args.dims = '16-16-8'
 
     save_dir = os.path.join("checkpoints", args.log_name)
     if not os.path.exists(save_dir):

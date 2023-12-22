@@ -57,7 +57,6 @@ class Biraffe2Dataset(Dataset):
     def __getitem__(self, idx):
         return self.x_tensor[idx], self.y_tensor[idx]
 
-    # happindess
     def __emotion_to_arousal_valence(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         arousal_mapping = {
             "FEAR": 0.7,
