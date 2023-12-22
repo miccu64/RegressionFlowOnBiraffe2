@@ -1,5 +1,7 @@
+import io
 import sys
 import os
+import cv2
 import torch
 import torch.distributed as dist
 import warnings
@@ -13,7 +15,7 @@ from data_regression_biraffe2 import Biraffe2Dataset
 from models.networks_regression_biraffe2 import HyperRegression
 from args import get_args
 from torch.backends import cudnn
-from utils import AverageValueMeter, set_random_seed, resume, save
+from utils import AverageValueMeter, draw_hyps, set_random_seed, resume, save
 import matplotlib.pyplot as plt
 
 
@@ -53,19 +55,19 @@ def main_worker(gpu, save_dir, args):
     print("Start epoch: %d End epoch: %d" % (start_epoch, args.epochs))
     for epoch in range(start_epoch, args.epochs):
         print("Epoch starts:")
-        train_data = Biraffe2Dataset()
+        train_data = Biraffe2Dataset(True)
         train_loader = torch.utils.data.DataLoader(
             dataset=train_data, batch_size=args.batch_size, shuffle=True,
             num_workers=0, pin_memory=True)
-        test_data = Biraffe2Dataset()
+        test_data = Biraffe2Dataset(True)
         test_loader = torch.utils.data.DataLoader(
             dataset=test_data, batch_size=1, shuffle=True,
             num_workers=0, pin_memory=True)
         
         for bidx, data in enumerate(train_loader):
             x, y = data
-            x = x.float().to(args.gpu)#.unsqueeze(1)
-            y = y.float().to(args.gpu).unsqueeze(1)#.unsqueeze(2)
+            x = x.float().to(args.gpu)
+            y = y.float().to(args.gpu).unsqueeze(1)
             print(x.shape)
             print(y.shape)
             step = bidx + len(train_loader) * epoch
@@ -80,23 +82,40 @@ def main_worker(gpu, save_dir, args):
         # save visualizations
         if (epoch + 1) % args.viz_freq == 0:
             # reconstructions
+            last_4_x = []
             model.eval()
             for bidx, data in enumerate(test_loader):
                 x, _ = data
-                x = x.float().to(args.gpu)
+                x = x.float()
+                # it is necessary to use 4 samples for hyps drawing
+                last_4_x.append(x)
+                if bidx < 3:
+                    continue
+                
+                x = x.to(args.gpu)
                 _, y_pred = model.decode(x, 100)
                 y_pred = y_pred.cpu().detach().numpy()
                 y_pred = y_pred.squeeze()
                 valence = y_pred[:, 0]
                 arousal = y_pred[:, 1]
-                #y = y.flatten()
-                figs, axs = plt.subplots(1, 1, figsize=(12, 12))
+
                 plt.xlim([-1, 1])
                 plt.ylim([-1, 1])
                 plt.scatter(valence, arousal)
-                plt.savefig(os.path.join(save_dir, 'images', 'result_epoch%d_%d.png' % (epoch, bidx)))
+
+                filepath = os.path.join(save_dir, 'images', 'result_epoch%d_%d.png' % (epoch, bidx))
+                plt.savefig(filepath)
                 plt.clf()
                 plt.close()
+
+                objects_list = last_4_x[0:2]
+                objects = np.stack(objects_list, axis=0)
+                gt_object = last_4_x[-1]
+
+                drawn_img_hyps = draw_hyps(filepath, y_pred, gt_object, objects, False)
+                cv2.imwrite(os.path.join(save_dir, 'images', str(bidx) + '-' + str(epoch) + '-hyps.jpg'), drawn_img_hyps)
+
+                last_4_x.pop(0)
         if (epoch + 1) % args.save_freq == 0:
             save(model, optimizer, epoch + 1,
                  os.path.join(save_dir, 'checkpoint-%d.pt' % epoch))

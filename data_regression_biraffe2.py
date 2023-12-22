@@ -7,7 +7,7 @@ class Biraffe2Dataset(Dataset):
     def __init__(self, load_ready_dataset: bool = False):
         if load_ready_dataset:
             normalized_dataframe = pd.read_csv('sample-SUB211-normalized.csv')
-            self.y_columns = ['ANGER', 'CONTEMPT', 'DISGUST', 'FEAR', 'HAPPINESS', 'NEUTRAL', 'SADNESS', 'SURPRISE']
+            self.y_columns = ['VALENCE', 'AROUSAL']
             self.x_columns = [col for col in normalized_dataframe.columns.tolist() if col not in self.y_columns]
             self.y_tensor = self.__normalize_dataframe_to_tensor(normalized_dataframe[self.y_columns])
             self.x_tensor = self.__normalize_dataframe_to_tensor(normalized_dataframe[self.x_columns])
@@ -35,7 +35,7 @@ class Biraffe2Dataset(Dataset):
 
         normalized_dataframe = pd.DataFrame(torch.cat((self.x_tensor, self.y_tensor), dim=1),
                                             columns=self.x_columns + self.y_columns)
-        normalized_dataframe.to_csv('sample-SUB211-normalized.csv')
+        normalized_dataframe.to_csv('sample-SUB211-normalized.csv', index=False)
 
     def __len__(self):
         return len(self.x_tensor)
