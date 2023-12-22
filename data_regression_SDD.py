@@ -116,11 +116,9 @@ class SDDData(Dataset):
 
         self.split = split
         if self.split == 'train':
-            # TODO: changed next line for fast learning in small set
-            root = os.path.join(root, 'train_small')
+            root = os.path.join(root, 'train')
         else:
-            # TODO: changed next line for fast learning in small set
-            root = os.path.join(root, split + '_small')
+            root = os.path.join(root, split)
         self.width = width
         self.height = height
         self.dataset = DataLoader(root)
