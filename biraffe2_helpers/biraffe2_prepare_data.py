@@ -1,30 +1,44 @@
 import os
+from typing import Dict
+from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
+import seaborn as sns
 
 
 def biraffe2_prepare_data(data_folder: str):
-    paths = [os.path.join(data_folder, "test"), os.path.join(data_folder, "train")]
-    for path in paths:
-        if not os.path.exists(path):
-            os.makedirs(path)
+    path = os.path.join(data_folder, "prepared_data")
+    if not os.path.exists(path):
+        os.makedirs(path)
 
     data_info = pd.read_csv(os.path.join(data_folder, "BIRAFFE2-metadata.csv"), delimiter=";")
-    test_data_interval = len(data_info) // (len(data_info) * 0.2)
 
-    for index, data in data_info.iterrows():
+    dataframes = {}
+    for _, data in data_info.iterrows():
         subject_id = data["ID"]
-        print(f"Preparing subject: {subject_id}")
+        print(f"Loading subject: {subject_id}")
 
         values = list(set([data["PHOTOS"], data["GAMEPAD"], data["GAME-1"]]))
         if len(values) != 1 or values[0] != "Y":
             continue
 
-        send_to_test_set = index % test_data_interval == 0
-        __save_subject_as_csv(data_folder, subject_id, send_to_test_set)
+        full_dataframe = __load_subject_files(data_folder, subject_id)
+        if len(full_dataframe.values) < 20:
+            continue
+
+        dataframes[subject_id] = full_dataframe
+
+    min, max = __find_min_max(dataframes)
+
+    print("Saving data to files...")
+    for subject_id, dataframe in dataframes.items():
+        __save_normalized_subject(path, subject_id, dataframe, min, max)
+    
+    print("Done!")
 
 
-def __save_subject_as_csv(data_folder: str, subject_id: int, is_test: bool) -> None:
+def __load_subject_files(data_folder: str, subject_id: int) -> pd.DataFrame:
     face_dataframe = __prepare_csv_dataframe(
         os.path.join(data_folder, "BIRAFFE2-photo", f"SUB{subject_id}-Face.csv"), "GAME-TIMESTAMP"
     )
@@ -36,36 +50,22 @@ def __save_subject_as_csv(data_folder: str, subject_id: int, is_test: bool) -> N
     )
 
     full_dataframe = pd.concat([gamepad_dataframe, face_dataframe, log_dataframe], axis=1, join="inner")
-    if len(full_dataframe) < 100:
-        return
 
     emotion_dataframe = __emotion_to_arousal_valence(full_dataframe[face_dataframe.columns.tolist()])
+    # safety check to avoid exception
+    if len(emotion_dataframe.values) == 0:
+        return pd.DataFrame([])
 
     y_columns = emotion_dataframe.columns.tolist()
-    y_tensor = __normalize_dataframe_to_tensor(emotion_dataframe)
+    y_tensor = torch.tensor(emotion_dataframe.values)
 
     x_columns = [
         col for col in full_dataframe.columns.tolist() if col not in y_columns + face_dataframe.columns.tolist()
     ]
-    correlated_cols = [
-        "XMAX",
-        "YMAX",
-        "GYR-X",
-        "SHOOTSCOUNTER",
-        "HITCOUNTER",
-        "MONEY",
-        "COLLECTEDMONEY",
-        "COLLECTEDHEALTH",
-    ]
-    x_columns = [col for col in x_columns if col not in correlated_cols]
-    x_tensor = __normalize_dataframe_to_tensor(full_dataframe[x_columns])
-
-    normalized_dataframe = pd.DataFrame(torch.cat((x_tensor, y_tensor), dim=1), columns=x_columns + y_columns)
-
-    directory = "test" if is_test else "train"
-    normalized_dataframe.to_csv(
-        os.path.join(data_folder, directory, f"sample-SUB{subject_id}-normalized.csv"), index=False
-    )
+    x_tensor = torch.tensor(full_dataframe[x_columns].values)
+    result_dataframe = pd.DataFrame(torch.cat((x_tensor, y_tensor), dim=1), columns=x_columns + y_columns)
+    
+    return __remove_correlated_columns(result_dataframe)
 
 
 def __emotion_to_arousal_valence(dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -144,12 +144,49 @@ def __prepare_json_log_dataframe(file_path: str) -> pd.DataFrame:
     return log_dataframe
 
 
-def __normalize_dataframe_to_tensor(dataframe: pd.DataFrame) -> torch.Tensor:
-    tensor = torch.tensor(dataframe.values)
+def __remove_correlated_columns(dataframe: pd.DataFrame):
+    correlated_cols = [
+        "COLLECTEDMONEY",
+        "COLLECTEDHEALTH",
+        "XMAX",
+        "YMAX",
+        "GYR-Z"
+    ]
+    return dataframe[[col for col in dataframe.columns.tolist() if col not in correlated_cols]]
 
-    min_vals, _ = torch.min(tensor, dim=0, keepdim=True)
-    max_vals, _ = torch.max(tensor, dim=0, keepdim=True)
+
+def __find_min_max(dataframes: Dict[int, pd.DataFrame]) -> tuple[torch.Tensor, torch.Tensor]:
+    all_data = []
+    for dataframe in dataframes.values():
+        all_data.append(dataframe.values)
+
+    all_data = torch.tensor(np.concatenate(all_data, axis=0))
+
+    min, _ = torch.min(all_data, dim=0, keepdim=True)
+    max, _ = torch.max(all_data, dim=0, keepdim=True)
+
+    # TODO: delete commented code when won't be anymore necessary
+    # normalized_all_data = -1 + 2 * (all_data - min) / (max - min)
+    # normalized_dataframe = pd.DataFrame(normalized_all_data, columns=dataframe.columns)
+    # correlation_matrix = normalized_dataframe.corr().abs()
+    # np.savetxt("aaa.txt", correlation_matrix.values)
+
+    # # Create a heatmap using seaborn
+    # sns.heatmap(correlation_matrix)
+    # plt.title("Correlation Matrix Heatmap")
+    # plt.show()
+    return min, max
+
+
+def __save_normalized_subject(
+    path: str, subject_id: int, dataframe: pd.DataFrame, min: torch.Tensor, max: torch.Tensor
+) -> None:
     # scale and shift to the range [-1, 1]
-    normalized_tensor = -1 + 2 * (tensor - min_vals) / (max_vals - min_vals)
+    normalized_tensor = -1 + 2 * (torch.tensor(dataframe.values) - min) / (max - min)
 
-    return normalized_tensor
+    normalized_dataframe = pd.DataFrame(normalized_tensor, columns=dataframe.columns)
+    normalized_dataframe.to_csv(os.path.join(path, f"SUB{subject_id}-data.csv"), index=False)
+
+
+if __name__ == "__main__":
+    biraffe2_prepare_data("data/BIRAFFE2")

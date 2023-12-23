@@ -28,17 +28,17 @@ def main_worker(gpu, save_dir, args):
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
 
-    train_data = Biraffe2Dataset(True)
+    train_data = Biraffe2Dataset(args.data_dir, True)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True
     )
-    test_data = Biraffe2Dataset(True)
+    test_data = Biraffe2Dataset(args.data_dir, False)
     test_loader = torch.utils.data.DataLoader(
         dataset=test_data, batch_size=1, shuffle=True, num_workers=0, pin_memory=True
     )
 
-    args.input_size = len(train_data.x_columns)
-    args.output_size = len(train_data.y_columns)
+    args.input_size = len(train_data.x_labels)
+    args.output_size = len(train_data.y_labels)
     args.input_dim = 2
 
     model = HyperRegression(args)
@@ -134,14 +134,15 @@ def main():
 
     # override args in order to debug
     args.gpu = 0
-    args.log_name = "biraffe2"
+    args.log_name = "biraffe2_v2"
     args.lr = 2e-3
     args.epochs = 3
-    args.batch_size = 128
+    args.batch_size = 8
     args.num_blocks = 1
     args.viz_freq = 1
     args.save_freq = 1
     args.log_freq = 1
+    args.data_dir = "data/BIRAFFE2"
 
     save_dir = os.path.join("checkpoints", args.log_name)
     if not os.path.exists(save_dir):
