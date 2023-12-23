@@ -7,7 +7,6 @@ import torch.distributed
 import random
 import faulthandler
 import time
-from biraffe2_helpers.biraffe2_prepare_data import biraffe2_prepare_data
 
 from data_regression_biraffe2 import Biraffe2Dataset
 from models.networks_regression_biraffe2 import HyperRegression
@@ -16,6 +15,7 @@ from torch.backends import cudnn
 from utils import AverageValueMeter, set_random_seed, resume, save
 import matplotlib.pyplot as plt
 from torch import optim
+import torch.multiprocessing as mp
 
 
 faulthandler.enable()
@@ -28,11 +28,11 @@ def main_worker(gpu, save_dir, args):
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
 
-    train_data = Biraffe2Dataset(args.data_dir, True)
+    train_data = Biraffe2Dataset(args.data_dir, False)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True
     )
-    test_data = Biraffe2Dataset(args.data_dir, False)
+    test_data = Biraffe2Dataset(args.data_dir, True)
     test_loader = torch.utils.data.DataLoader(
         dataset=test_data, batch_size=1, shuffle=True, num_workers=0, pin_memory=True
     )
@@ -107,6 +107,9 @@ def main_worker(gpu, save_dir, args):
             # reconstructions
             model.eval()
             for bidx, data in enumerate(test_loader):
+                if bidx % 40 != 0:
+                    continue
+
                 x, _ = data
                 x = x.float().to(args.gpu)
                 _, y_pred = model.decode(x, 100)
@@ -137,11 +140,12 @@ def main():
     args.log_name = "biraffe2_v2"
     args.lr = 2e-3
     args.epochs = 3
-    args.batch_size = 8
+    args.batch_size = 1024
     args.num_blocks = 1
-    args.viz_freq = 1
-    args.save_freq = 1
     args.log_freq = 1
+    args.viz_freq = 1
+    args.viz_batch_freq = 100
+    args.save_freq = 1
     args.data_dir = "data/BIRAFFE2"
 
     save_dir = os.path.join("checkpoints", args.log_name)
@@ -166,9 +170,12 @@ def main():
     if args.sync_bn:
         assert args.distributed
 
-    print("Arguments:")
-    print(args)
-    main_worker(args.gpu, save_dir, args)
+    ngpus_per_node = torch.cuda.device_count()
+    if args.distributed:
+        args.world_size = ngpus_per_node * args.world_size
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(save_dir, ngpus_per_node, args))
+    else:
+        main_worker(args.gpu, save_dir, args)
 
 
 if __name__ == "__main__":

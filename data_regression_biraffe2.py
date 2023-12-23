@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 
 
 class Biraffe2Dataset(Dataset):
-    def __init__(self, data_path: str, is_train: bool):
-        directory = "train2" if is_train else "test2"
-        files = glob.glob(os.path.join(data_path, directory, "*.csv"))
+    def __init__(self, data_path: str, is_test: bool):
+        files = glob.glob(os.path.join(data_path, "prepared_data", "*.csv"))
+        count = int(len(files) * 0.2)
+        files = files[-count:] if is_test else files[:-count]
 
         self.X = []
         self.Y = []

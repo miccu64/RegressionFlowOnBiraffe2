@@ -104,7 +104,10 @@ def add_args(parser):
 
     # logging and saving frequency
     parser.add_argument('--log_name', type=str, default=None, help="Name for the log dir")
-    parser.add_argument('--viz_freq', type=int, default=10)
+    parser.add_argument('--viz_freq', type=int, default=10,
+                        help='Frequency of vizualization (in epochs)')
+    parser.add_argument('--viz_batch_freq', type=int, default=10,
+                        help='Frequency of vizualization (in batches per viz_freq)')
     parser.add_argument('--val_freq', type=int, default=10)
     parser.add_argument('--log_freq', type=int, default=10)
     parser.add_argument('--save_freq', type=int, default=10)
