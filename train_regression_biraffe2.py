@@ -108,7 +108,7 @@ def main_worker(gpu, save_dir, args):
             # reconstructions
             model.eval()
             for bidx, data in enumerate(test_loader):
-                x, _ = data
+                x, _, _ = data
                 x = x.squeeze().float().to(args.gpu)
                 _, y_pred = model.decode(x, 100)
                 y_pred = y_pred.cpu().detach().numpy()
@@ -137,13 +137,14 @@ def main():
     args.gpu = 0
     args.log_name = "biraffe2_v2"
     args.lr = 2e-3
-    args.epochs = 4
+    args.epochs = 1
     args.batch_size = 1024
     args.num_blocks = 1
     args.log_freq = 1
     args.viz_freq = 1
     args.save_freq = 1
     args.data_dir = "data/BIRAFFE2"
+    args.dims = '32-32-32'
 
     save_dir = os.path.join("checkpoints", args.log_name)
     if not os.path.exists(save_dir):

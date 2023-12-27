@@ -10,6 +10,11 @@ class Biraffe2DatasetTest(Biraffe2Dataset):
         self.y_labels = ["VALENCE", "AROUSAL"]
 
         files = self.get_files(True, data_path)
+        self.subjects = []
+        for file in files:
+            position = file.find("SUB")
+            self.subjects.append(file[position : (position + 6)])
+
         for file in files:
             dataframe = pd.read_csv(file)
             self.x_labels = [col for col in dataframe.columns.tolist() if col not in self.y_labels]
@@ -20,4 +25,4 @@ class Biraffe2DatasetTest(Biraffe2Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-        return self.X[idx], self.Y[idx]
+        return self.X[idx], self.Y[idx], self.subjects[idx]
