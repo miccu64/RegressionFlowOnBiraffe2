@@ -9,6 +9,7 @@ import faulthandler
 import time
 
 from data_regression_biraffe2 import Biraffe2Dataset
+from data_regression_biraffe2_test import Biraffe2DatasetTest
 from models.networks_regression_biraffe2 import HyperRegression
 from args import get_args
 from torch.backends import cudnn
@@ -28,11 +29,11 @@ def main_worker(gpu, save_dir, args):
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
 
-    train_data = Biraffe2Dataset(args.data_dir, False)
+    train_data = Biraffe2Dataset(args.data_dir)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True
     )
-    test_data = Biraffe2Dataset(args.data_dir, True)
+    test_data = Biraffe2DatasetTest(args.data_dir)
     test_loader = torch.utils.data.DataLoader(
         dataset=test_data, batch_size=1, shuffle=True, num_workers=0, pin_memory=True
     )
@@ -107,11 +108,8 @@ def main_worker(gpu, save_dir, args):
             # reconstructions
             model.eval()
             for bidx, data in enumerate(test_loader):
-                if bidx % 40 != 0:
-                    continue
-
                 x, _ = data
-                x = x.float().to(args.gpu)
+                x = x.squeeze().float().to(args.gpu)
                 _, y_pred = model.decode(x, 100)
                 y_pred = y_pred.cpu().detach().numpy()
                 y_pred = y_pred.squeeze()
@@ -139,12 +137,11 @@ def main():
     args.gpu = 0
     args.log_name = "biraffe2_v2"
     args.lr = 2e-3
-    args.epochs = 3
+    args.epochs = 4
     args.batch_size = 1024
     args.num_blocks = 1
     args.log_freq = 1
     args.viz_freq = 1
-    args.viz_batch_freq = 100
     args.save_freq = 1
     args.data_dir = "data/BIRAFFE2"
 

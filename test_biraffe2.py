@@ -4,7 +4,7 @@ import os
 import cv2
 import numpy as np
 import torch
-from data_regression_biraffe2 import Biraffe2Dataset
+from data_regression_biraffe2_test import Biraffe2DatasetTest
 
 import mmfp_utils
 from args import get_args
@@ -30,10 +30,10 @@ def get_grid_logprob(
 def main(args):
     args.gpu = 0
     args.num_blocks = 1
-    args.input_dim = 2
     args.resume_checkpoint = 'checkpoints/biraffe2/checkpoint-latest.pt'
+    args.data_dir = "data/BIRAFFE2"
 
-    test_data = Biraffe2Dataset(True)
+    test_data = Biraffe2DatasetTest(args.data_dir)
     test_loader = torch.utils.data.DataLoader(
         dataset=test_data, batch_size=1, shuffle=True, num_workers=0, pin_memory=True
     )
