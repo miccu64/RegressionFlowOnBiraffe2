@@ -34,7 +34,7 @@ def biraffe2_prepare_data(data_folder: str):
     print("Saving data to files...")
     for subject_id, dataframe in dataframes.items():
         __save_normalized_subject(path, subject_id, dataframe, min, max)
-    
+
     print("Done!")
 
 
@@ -46,25 +46,35 @@ def __load_subject_files(data_folder: str, subject_id: int) -> pd.DataFrame:
         os.path.join(data_folder, "BIRAFFE2-gamepad", f"SUB{subject_id}-Gamepad.csv"), "TIMESTAMP"
     )
     log_dataframe = __prepare_json_log_dataframe(
-        os.path.join(data_folder, "BIRAFFE2-games", f"SUB{subject_id}", f"SUB{subject_id}-Level01_Log.json")
+        os.path.join(
+            data_folder, "BIRAFFE2-games", f"SUB{subject_id}", f"SUB{subject_id}-Level01_Log.json"
+        )
     )
 
-    full_dataframe = pd.concat([gamepad_dataframe, face_dataframe, log_dataframe], axis=1, join="inner")
+    all_dataframes = [gamepad_dataframe, face_dataframe, log_dataframe]
+    if any(df.empty for df in all_dataframes):
+        return pd.DataFrame([])
 
-    emotion_dataframe = __emotion_to_arousal_valence(full_dataframe[face_dataframe.columns.tolist()])
-    # safety check to avoid exception
-    if len(emotion_dataframe.values) == 0:
+    full_dataframe = pd.concat(all_dataframes, axis=1, join="inner")
+    emotion_dataframe = __emotion_to_arousal_valence(
+        full_dataframe[face_dataframe.columns.tolist()]
+    )
+    if emotion_dataframe.empty:
         return pd.DataFrame([])
 
     y_columns = emotion_dataframe.columns.tolist()
     y_tensor = torch.tensor(emotion_dataframe.values)
 
     x_columns = [
-        col for col in full_dataframe.columns.tolist() if col not in y_columns + face_dataframe.columns.tolist()
+        col
+        for col in full_dataframe.columns.tolist()
+        if col not in y_columns + face_dataframe.columns.tolist()
     ]
     x_tensor = torch.tensor(full_dataframe[x_columns].values)
-    result_dataframe = pd.DataFrame(torch.cat((x_tensor, y_tensor), dim=1), columns=x_columns + y_columns)
-    
+    result_dataframe = pd.DataFrame(
+        torch.cat((x_tensor, y_tensor), dim=1), columns=x_columns + y_columns
+    )
+
     return __remove_correlated_columns(result_dataframe)
 
 
@@ -118,7 +128,9 @@ def __timestamp_to_10_digits(timestamp: float) -> int:
 
 
 def __round_timestamps(dataframe: pd.DataFrame, timestamp_column_name: str):
-    dataframe[timestamp_column_name] = dataframe[timestamp_column_name].apply(__timestamp_to_10_digits)
+    dataframe[timestamp_column_name] = dataframe[timestamp_column_name].apply(
+        __timestamp_to_10_digits
+    )
     return dataframe.groupby(timestamp_column_name).mean().reset_index()
 
 
@@ -135,7 +147,9 @@ def __prepare_json_log_dataframe(file_path: str) -> pd.DataFrame:
 
     timestamp_column_name = "timestamp"
     log_dataframe = __nans_delete(log_dataframe, timestamp_column_name)
-    log_dataframe[timestamp_column_name] = log_dataframe[timestamp_column_name].apply(lambda x: float(x.timestamp()))
+    log_dataframe[timestamp_column_name] = log_dataframe[timestamp_column_name].apply(
+        lambda x: float(x.timestamp())
+    )
     log_dataframe = __round_timestamps(log_dataframe, timestamp_column_name)
 
     log_dataframe = log_dataframe.rename(columns=str.upper)
@@ -145,13 +159,7 @@ def __prepare_json_log_dataframe(file_path: str) -> pd.DataFrame:
 
 
 def __remove_correlated_columns(dataframe: pd.DataFrame):
-    correlated_cols = [
-        "COLLECTEDMONEY",
-        "COLLECTEDHEALTH",
-        "XMAX",
-        "YMAX",
-        "GYR-Z"
-    ]
+    correlated_cols = ["COLLECTEDMONEY", "COLLECTEDHEALTH", "XMAX", "YMAX", "GYR-Z"]
     return dataframe[[col for col in dataframe.columns.tolist() if col not in correlated_cols]]
 
 
