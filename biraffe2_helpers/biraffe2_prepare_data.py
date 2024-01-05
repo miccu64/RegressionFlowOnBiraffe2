@@ -1,14 +1,19 @@
 import os
+import random
 from typing import Dict
 import numpy as np
 import pandas as pd
+from scipy import stats
 import torch
 
 
+__y_labels = ["VALENCE", "AROUSAL"]
+
+
 def biraffe2_prepare_data(data_folder: str):
-    path = os.path.join(data_folder, "prepared_data")
-    if not os.path.exists(path):
-        os.makedirs(path)
+    test_path = os.path.join(data_folder, "test_data")
+    train_path = os.path.join(data_folder, "train_data")
+    [os.makedirs(p, exist_ok=True) for p in [test_path, train_path]]
 
     data_info = pd.read_csv(os.path.join(data_folder, "BIRAFFE2-metadata.csv"), delimiter=";")
 
@@ -22,16 +27,30 @@ def biraffe2_prepare_data(data_folder: str):
             continue
 
         full_dataframe = __load_subject_files(data_folder, subject_id)
-        if len(full_dataframe.values) < 20:
+        if len(full_dataframe.values) < 5:
             continue
 
         dataframes[subject_id] = full_dataframe
-
-    min, max = __find_min_max(dataframes)
+        # if subject_id > 103:
+        #     break
 
     print("Saving data to files...")
+    dataframes = __remove_outliers(dataframes)
+    min, max = __find_min_max(dataframes)
+
     for subject_id, dataframe in dataframes.items():
-        __save_normalized_subject(path, subject_id, dataframe, min, max)
+        if len(dataframe.values) < 5:
+            continue
+
+        dataframe = __normalize_dataframe(dataframe, min, max)
+
+        filepath = f"SUB{subject_id}-data.csv"
+        if random.choices([True, False], weights=[0.2, 0.8], k=1)[0]:
+            filepath = os.path.join(test_path, filepath)
+        else:
+            filepath = os.path.join(train_path, filepath)
+
+        dataframe.to_csv(filepath, index=False)
 
     print("Done!")
 
@@ -93,8 +112,8 @@ def __emotion_to_arousal_valence(dataframe: pd.DataFrame) -> pd.DataFrame:
         "DISGUST": 0.2,
         "HAPPINESS": 0.1,
         "NEUTRAL": 0.0,
-        "SADNESS": -0.6,
-        "CONTEMPT": 0.4,
+        "SADNESS": -0.4,
+        "CONTEMPT": 0.3,
     }
 
     results = []
@@ -103,7 +122,7 @@ def __emotion_to_arousal_valence(dataframe: pd.DataFrame) -> pd.DataFrame:
         arousal = sum(y_arousal_mapping[emotion] * value for emotion, value in data.items())
         results.append([valence, arousal])
 
-    return pd.DataFrame(results, columns=["VALENCE", "AROUSAL"])
+    return pd.DataFrame(results, columns=__y_labels)
 
 
 def __nans_delete(dataframe: pd.DataFrame, timestamp_column_name: str) -> pd.DataFrame:
@@ -161,36 +180,28 @@ def __remove_correlated_columns(dataframe: pd.DataFrame):
 
 
 def __find_min_max(dataframes: Dict[int, pd.DataFrame]) -> tuple[torch.Tensor, torch.Tensor]:
-    all_data = []
-    for dataframe in dataframes.values():
-        all_data.append(dataframe.values)
-
-    all_data = torch.tensor(np.concatenate(all_data, axis=0))
-
-    min, _ = torch.min(all_data, dim=0, keepdim=True)
-    max, _ = torch.max(all_data, dim=0, keepdim=True)
-
-    # TODO: delete commented code when won't be anymore necessary
-    # normalized_all_data = -1 + 2 * (all_data - min) / (max - min)
-    # normalized_dataframe = pd.DataFrame(normalized_all_data, columns=dataframe.columns)
-    # correlation_matrix = normalized_dataframe.corr().abs()
-    # np.savetxt("aaa.txt", correlation_matrix.values)
-
-    # # Create a heatmap using seaborn
-    # sns.heatmap(correlation_matrix)
-    # plt.title("Correlation Matrix Heatmap")
-    # plt.show()
-    return min, max
+    all_data = pd.concat(dataframes.values(), ignore_index=True)
+    return all_data.min(), all_data.max()
 
 
-def __save_normalized_subject(
-    path: str, subject_id: int, dataframe: pd.DataFrame, min: torch.Tensor, max: torch.Tensor
-) -> None:
-    # scale and shift to the range [-1, 1]
-    normalized_tensor = -1 + 2 * (torch.tensor(dataframe.values) - min) / (max - min)
+def __remove_outliers(dataframes: Dict[int, pd.DataFrame]) -> Dict[int, pd.DataFrame]:
+    all_data = pd.concat(dataframes.values(), ignore_index=True)
+    outlier_mask = (np.abs(stats.zscore(all_data)) < 3).all(axis=1)
 
-    normalized_dataframe = pd.DataFrame(normalized_tensor, columns=dataframe.columns)
-    normalized_dataframe.to_csv(os.path.join(path, f"SUB{subject_id}-data.csv"), index=False)
+    result_dataframes = {}
+    for id, dataframe in dataframes.items():
+        lenght = dataframe.shape[0]
+        result_dataframes[id] = dataframe[outlier_mask[:lenght]]
+        outlier_mask = outlier_mask[lenght:].reset_index(drop=True)
+
+    return result_dataframes
+
+
+def __normalize_dataframe(
+    dataframe: pd.DataFrame, min_values: pd.DataFrame, max_values: pd.DataFrame
+) -> pd.DataFrame:
+    # scale to the range [-1, 1]
+    return -1 + 2 * (dataframe - min_values) / (max_values - min_values)
 
 
 if __name__ == "__main__":

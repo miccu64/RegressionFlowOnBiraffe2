@@ -26,7 +26,8 @@ def main(args):
     args.num_blocks = 1
     args.resume_checkpoint = "checkpoints/biraffe2_v2/checkpoint-latest.pt"
     args.data_dir = "data/BIRAFFE2"
-    args.dims = "32-32-32"
+    args.dims = '16-16-16'
+    args.hyper_dims = '64-16'
 
     test_data = Biraffe2DatasetTest(args.data_dir)
     test_loader = torch.utils.data.DataLoader(
@@ -63,9 +64,12 @@ def main(args):
         subject = subject[0]
 
         for row in range(x_all.shape[0]):
+            if row % 50 != 0:
+                continue
+            
             x = x_all[row, :].unsqueeze(0)
             y_gt = y_gt_all[row, :].unsqueeze(0).unsqueeze(1)
-            _, y_pred = model.decode(x, 100)
+            _, y_pred = model.decode(x, 1000)
 
             log_py, log_px, _ = model.get_logprob(x, y_gt)
 

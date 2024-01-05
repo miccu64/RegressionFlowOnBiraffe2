@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 
 from data_regression_biraffe2 import Biraffe2Dataset
@@ -9,7 +10,7 @@ class Biraffe2DatasetTest(Biraffe2Dataset):
         self.Y = []
         self.y_labels = ["VALENCE", "AROUSAL"]
 
-        files = self.get_files(True, data_path)
+        files = self.get_files(os.path.join(data_path, "test_data"))
         self.subjects = []
         for file in files:
             position = file.find("SUB")

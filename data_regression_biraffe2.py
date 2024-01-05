@@ -11,7 +11,7 @@ class Biraffe2Dataset(Dataset):
         self.Y = []
         self.y_labels = ["VALENCE", "AROUSAL"]
 
-        files = self.get_files(False, data_path)
+        files = self.get_files(os.path.join(data_path, "train_data"))
         for file in files:
             dataframe = pd.read_csv(file)
             self.x_labels = [col for col in dataframe.columns.tolist() if col not in self.y_labels]
@@ -27,7 +27,5 @@ class Biraffe2Dataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.Y[idx]
 
-    def get_files(self, is_test: bool, data_path: str) -> list[str]:
-        files = glob.glob(os.path.join(data_path, "prepared_data", "*.csv"))
-        count = int(len(files) * 0.2)
-        return files[-count:] if is_test else files[:-count]
+    def get_files(self, data_path: str) -> list[str]:
+        return glob.glob(os.path.join(data_path, "*.csv"))
