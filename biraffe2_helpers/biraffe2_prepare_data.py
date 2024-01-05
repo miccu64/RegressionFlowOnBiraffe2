@@ -1,10 +1,8 @@
 import os
 from typing import Dict
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-import seaborn as sns
 
 
 def biraffe2_prepare_data(data_folder: str):
@@ -74,36 +72,35 @@ def __load_subject_files(data_folder: str, subject_id: int) -> pd.DataFrame:
     result_dataframe = pd.DataFrame(
         torch.cat((x_tensor, y_tensor), dim=1), columns=x_columns + y_columns
     )
-
     return __remove_correlated_columns(result_dataframe)
 
 
 def __emotion_to_arousal_valence(dataframe: pd.DataFrame) -> pd.DataFrame:
-    arousal_mapping = {
-        "FEAR": 0.7,
-        "SURPRISE": 0.45,
-        "ANGER": 0.25,
-        "DISGUST": -0.45,
-        "HAPPINESS": 0.5,
-        "NEUTRAL": 0.0,
-        "SADNESS": -0.3,
-        "CONTEMPT": -0.7,
-    }
-    valence_mapping = {
+    x_valence_mapping = {
         "FEAR": -0.2,
-        "SURPRISE": 0.75,
-        "ANGER": -0.7,
-        "DISGUST": -0.2,
-        "HAPPINESS": 0.7,
+        "SURPRISE": 0.3,
+        "ANGER": -0.8,
+        "DISGUST": -1.0,
+        "HAPPINESS": 1.0,
         "NEUTRAL": 0.0,
-        "SADNESS": -0.7,
-        "CONTEMPT": -0.2,
+        "SADNESS": -0.8,
+        "CONTEMPT": -0.9,
+    }
+    y_arousal_mapping = {
+        "FEAR": 1.0,
+        "SURPRISE": 1.0,
+        "ANGER": 0.7,
+        "DISGUST": 0.2,
+        "HAPPINESS": 0.1,
+        "NEUTRAL": 0.0,
+        "SADNESS": -0.6,
+        "CONTEMPT": 0.4,
     }
 
     results = []
     for _, data in dataframe.iterrows():
-        valence = sum(valence_mapping[emotion] * value for emotion, value in data.items())
-        arousal = sum(arousal_mapping[emotion] * value for emotion, value in data.items())
+        valence = sum(x_valence_mapping[emotion] * value for emotion, value in data.items())
+        arousal = sum(y_arousal_mapping[emotion] * value for emotion, value in data.items())
         results.append([valence, arousal])
 
     return pd.DataFrame(results, columns=["VALENCE", "AROUSAL"])
