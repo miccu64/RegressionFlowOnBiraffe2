@@ -1,5 +1,6 @@
 import sys
 import os
+import numpy as np
 import torch
 import torch.distributed as dist
 import warnings
@@ -7,6 +8,7 @@ import torch.distributed
 import random
 import faulthandler
 import time
+from biraffe2_helpers.biraffe2_utils import ratio_points_out_of_range
 
 from data_regression_biraffe2 import Biraffe2Dataset
 from data_regression_biraffe2_test import Biraffe2DatasetTest
@@ -48,8 +50,12 @@ def main_worker(gpu, save_dir, args):
     model = model.cuda(args.gpu)
     start_epoch = 0
     optimizer = model.make_optimizer(args)
-    if args.resume_checkpoint is None and os.path.exists(os.path.join(save_dir, "checkpoint-latest.pt")):
-        args.resume_checkpoint = os.path.join(save_dir, "checkpoint-latest.pt")  # use the latest checkpoint
+    if args.resume_checkpoint is None and os.path.exists(
+        os.path.join(save_dir, "checkpoint-latest.pt")
+    ):
+        args.resume_checkpoint = os.path.join(
+            save_dir, "checkpoint-latest.pt"
+        )  # use the latest checkpoint
     if args.resume_checkpoint is not None:
         if args.resume_optimizer:
             model, optimizer, start_epoch = resume(
@@ -61,16 +67,17 @@ def main_worker(gpu, save_dir, args):
             )
         print("Resumed from: " + args.resume_checkpoint)
 
-    
     # initialize the learning rate scheduler
-    if args.scheduler == 'exponential':
+    if args.scheduler == "exponential":
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, args.exp_decay)
-    elif args.scheduler == 'step':
+    elif args.scheduler == "step":
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.epochs // 2, gamma=0.1)
-    elif args.scheduler == 'linear':
+    elif args.scheduler == "linear":
+
         def lambda_rule(ep):
             lr_l = 1.0 - max(0, ep - 0.5 * args.epochs) / float(0.5 * args.epochs)
             return lr_l
+
         scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule)
     else:
         assert 0, "args.schedulers should be either 'exponential' or 'linear'"
@@ -81,11 +88,13 @@ def main_worker(gpu, save_dir, args):
     if args.distributed:
         print("[Rank %d] World size : %d" % (args.rank, dist.get_world_size()))
 
+    is_first_epoch = True
     print("Start epoch: %d End epoch: %d" % (start_epoch, args.epochs))
     for epoch in range(start_epoch, args.epochs):
         # adjust the learning rate
-        if (epoch + 1) % args.exp_decay_freq == 0:
-            scheduler.step(epoch=epoch)
+        if not is_first_epoch and (epoch + 1) % args.exp_decay_freq == 0:
+            scheduler.step()
+        is_first_epoch = False
 
         print("Epoch starts:")
         for bidx, data in enumerate(train_loader):
@@ -101,28 +110,43 @@ def main_worker(gpu, save_dir, args):
                 start_time = time.time()
                 print(
                     "[Rank %d] Epoch %d Batch [%2d/%2d] Time [%3.2fs] PointNats %2.5f"
-                    % (args.rank, epoch, bidx, len(train_loader), duration, point_nats_avg_meter.avg)
+                    % (
+                        args.rank,
+                        epoch,
+                        bidx,
+                        len(train_loader),
+                        duration,
+                        point_nats_avg_meter.avg,
+                    )
                 )
         # save visualizations
         if (epoch + 1) % args.viz_freq == 0:
             # reconstructions
+            out_of_range = []
             model.eval()
             for bidx, data in enumerate(test_loader):
                 x, _, subject = data
                 x = x.squeeze().float().to(args.gpu)
-                _, y_pred = model.decode(x, 100)
+                _, y_pred = model.decode(x, 10)
                 y_pred = y_pred.cpu().detach().numpy()
-                y_pred = y_pred.squeeze()
+                y_pred = y_pred.reshape(-1, args.output_size)
                 valence = y_pred[:, 0]
                 arousal = y_pred[:, 1]
 
-                plt.xlim([-1, 1])
-                plt.ylim([-1, 1])
+                lim = [-1.1, 1.1]
+                plt.xlim(lim)
+                plt.ylim(lim)
                 plt.scatter(valence, arousal)
 
-                filepath = os.path.join(save_dir, "images", "result_epoch%d_%s.png" % (epoch, subject[0]))
-                plt.savefig(filepath)
+                filepath = os.path.join(
+                    save_dir, "images", "result_epoch%d_%s.png" % (epoch, subject[0])
+                )
+                plt.savefig(filepath, format="png", bbox_inches="tight")
                 plt.close()
+
+                out_of_range.append(ratio_points_out_of_range(y_pred))
+
+            print(f"Points not fitting square [-1, 1]: {np.mean(out_of_range):.4f}%")
 
         if (epoch + 1) % args.save_freq == 0:
             save(model, optimizer, epoch + 1, os.path.join(save_dir, "checkpoint-%d.pt" % epoch))
@@ -147,8 +171,8 @@ def main():
     args.weight_decay = 1e-5
     args.epochs = 100
     args.batch_size = 1024
-    args.dims = '16-16-16'
-    args.hyper_dims = '64-16'
+    args.dims = "16-16-16"
+    args.hyper_dims = "64-16"
 
     save_dir = os.path.join("checkpoints", args.log_name)
     if not os.path.exists(save_dir):
@@ -164,7 +188,9 @@ def main():
     set_random_seed(args.seed)
 
     if args.gpu is not None:
-        warnings.warn("You have chosen a specific GPU. This will completely " "disable data parallelism.")
+        warnings.warn(
+            "You have chosen a specific GPU. This will completely " "disable data parallelism."
+        )
 
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])

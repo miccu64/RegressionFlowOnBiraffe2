@@ -2,7 +2,7 @@ import json
 import os
 import numpy as np
 import torch
-from biraffe2_helpers.biraffe2_utils import draw_biraffe2_heatmap
+from biraffe2_helpers.biraffe2_utils import draw_biraffe2_heatmap, ratio_points_out_of_range
 from data_regression_biraffe2_test import Biraffe2DatasetTest
 
 import mmfp_utils
@@ -26,8 +26,8 @@ def main(args):
     args.num_blocks = 1
     args.resume_checkpoint = "checkpoints/biraffe2_v2/checkpoint-latest.pt"
     args.data_dir = "data/BIRAFFE2"
-    args.dims = '16-16-16'
-    args.hyper_dims = '64-16'
+    args.dims = "16-16-16"
+    args.hyper_dims = "64-16"
 
     test_data = Biraffe2DatasetTest(args.data_dir)
     test_loader = torch.utils.data.DataLoader(
@@ -53,6 +53,7 @@ def main(args):
     nll_py_sum = 0
 
     multimod_emd_sum = 0
+    out_of_range_sum = 0.
 
     counter = 0.0
 
@@ -64,9 +65,6 @@ def main(args):
         subject = subject[0]
 
         for row in range(x_all.shape[0]):
-            if row % 50 != 0:
-                continue
-            
             x = x_all[row, :].unsqueeze(0)
             y_gt = y_gt_all[row, :].unsqueeze(0).unsqueeze(1)
             _, y_pred = model.decode(x, 1000)
@@ -76,7 +74,7 @@ def main(args):
             log_py = log_py.cpu().detach().numpy().squeeze()
             log_px = log_px.cpu().detach().numpy().squeeze()
 
-            print(f"Subject: {subject}, row: {row}")
+            print(f"[Subject: {subject}, row: {row}]")
             print("nll_x", str(-1.0 * log_px))
             print("nll_y", str(-1.0 * log_py))
             print("nll_(x+y)", str(-1.0 * log_px + log_py))
@@ -90,6 +88,10 @@ def main(args):
             multimod_emd_sum += multimod_emd
             print("multimod_emd", multimod_emd)
 
+            out_of_range = ratio_points_out_of_range(y_pred)
+            print(f"Points not fitting square [-1, 1]: {np.mean(out_of_range):.4f}%")
+            out_of_range_sum += out_of_range
+
             valence = y_pred[:, 0]
             arousal = y_pred[:, 1]
 
@@ -98,8 +100,7 @@ def main(args):
             draw_biraffe2_heatmap(
                 x_valence=valence,
                 y_arousal=arousal,
-                log_px_pred=log_px_grid,
-                log_py_pred=log_py_grid,
+                log_pred=log_py_grid,
                 X=X,
                 Y=Y,
                 save_path=os.path.join(save_path, f"{subject}-{row}-heatmap.png"),
@@ -111,12 +112,14 @@ def main(args):
                 "nll_x": float(-1.0 * log_px),
                 "nll_y": float(-1.0 * log_py),
                 "multimod_emd": float(multimod_emd),
+                "out_of_range": out_of_range
             }
             results.append(result_row)
 
     print("Mean log_p_x: ", nll_px_sum / counter)
     print("Mean log_p_y: ", nll_py_sum / counter)
     print("Mean multimod_emd:", multimod_emd_sum / counter)
+    print("Mean out_of_range:", out_of_range_sum / counter)
 
     with open(os.path.join(save_path, "metrics.json"), "w") as f:
         json.dump(results, f)

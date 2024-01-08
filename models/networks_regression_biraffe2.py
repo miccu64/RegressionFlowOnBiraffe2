@@ -5,6 +5,7 @@ from models.flow import get_hyper_cnf
 from utils import standard_laplace_logprob, truncated_normal, standard_normal_logprob
 from torch.distributions.laplace import Laplace
 
+
 class ListModule(nn.Module):
     def __init__(self, *args):
         super(ListModule, self).__init__()
@@ -42,7 +43,10 @@ class HyperRegression(nn.Module):
         def _get_opt_(params):
             if args.optimizer == "adam":
                 optimizer = optim.Adam(
-                    params, lr=args.lr, betas=(args.beta1, args.beta2), weight_decay=args.weight_decay
+                    params,
+                    lr=args.lr,
+                    betas=(args.beta1, args.beta2),
+                    weight_decay=args.weight_decay,
                 )
             elif args.optimizer == "sgd":
                 optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum)
@@ -59,7 +63,9 @@ class HyperRegression(nn.Module):
         target_networks_weights = self.hyper(x)
 
         # Loss
-        y, delta_log_py = self.point_cnf(y, target_networks_weights, torch.zeros(batch_size, y.size(1), 1).to(y))
+        y, delta_log_py = self.point_cnf(
+            y, target_networks_weights, torch.zeros(batch_size, y.size(1), 1).to(y)
+        )
         if self.logprob_type == "Laplace":
             log_py = standard_laplace_logprob(y).view(batch_size, -1).sum(1, keepdim=True)
         if self.logprob_type == "Normal":
@@ -82,7 +88,7 @@ class HyperRegression(nn.Module):
         if truncate_std is not None:
             truncated_normal(y, mean=0, std=1, trunc_std=truncate_std)
         return y
-    
+
     @staticmethod
     def sample_laplace(size, gpu=None):
         m = Laplace(torch.tensor([0.0]), torch.tensor([1.0]))
@@ -140,9 +146,13 @@ class HyperFlowNetwork(nn.Module):
         model = []
         for k in range(len(dims)):
             if k == 0:
-                model.append(nn.Linear(in_features=input_size, out_features=dims[k], bias=self.use_bias))
+                model.append(
+                    nn.Linear(in_features=input_size, out_features=dims[k], bias=self.use_bias)
+                )
             else:
-                model.append(nn.Linear(in_features=dims[k - 1], out_features=dims[k], bias=self.use_bias))
+                model.append(
+                    nn.Linear(in_features=dims[k - 1], out_features=dims[k], bias=self.use_bias)
+                )
             if k < len(dims) - 1:
                 model.append(nn.ReLU(inplace=True))
 

@@ -31,10 +31,26 @@ def biraffe2_prepare_data(data_folder: str):
             continue
 
         dataframes[subject_id] = full_dataframe
-        # if subject_id > 103:
-        #     break
 
     print("Saving data to files...")
+
+    train_dataframes = {}
+    test_dataframes = {}
+    for subject_id, dataframe in dataframes.items():
+        if random.choices([True, False], weights=[0.2, 0.8], k=1)[0]:
+            test_dataframes[subject_id] = dataframe
+        else:
+            train_dataframes[subject_id] = dataframe
+
+    __prepare_and_save_dataset(train_dataframes, train_path)
+    __prepare_and_save_dataset(test_dataframes, test_path)
+
+    print("Done!")
+
+
+def __prepare_and_save_dataset(
+    dataframes: Dict[int, pd.DataFrame], save_path: str
+) -> Dict[int, pd.DataFrame]:
     dataframes = __remove_outliers(dataframes)
     min, max = __find_min_max(dataframes)
 
@@ -43,16 +59,8 @@ def biraffe2_prepare_data(data_folder: str):
             continue
 
         dataframe = __normalize_dataframe(dataframe, min, max)
-
-        filepath = f"SUB{subject_id}-data.csv"
-        if random.choices([True, False], weights=[0.2, 0.8], k=1)[0]:
-            filepath = os.path.join(test_path, filepath)
-        else:
-            filepath = os.path.join(train_path, filepath)
-
+        filepath = os.path.join(save_path, f"SUB{subject_id}-data.csv")
         dataframe.to_csv(filepath, index=False)
-
-    print("Done!")
 
 
 def __load_subject_files(data_folder: str, subject_id: int) -> pd.DataFrame:
@@ -205,4 +213,5 @@ def __normalize_dataframe(
 
 
 if __name__ == "__main__":
-    biraffe2_prepare_data("data/BIRAFFE2")
+    data_path = "data/BIRAFFE2"
+    biraffe2_prepare_data(data_path)
