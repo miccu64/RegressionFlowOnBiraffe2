@@ -1,13 +1,32 @@
-# regressionFlow
+# RegressionFlow on BIRAFFE2
 
-## Installation 
+Aim of this project is to predict future emotions of player (data from BIRAFFE2 dataset) in the form of probability blob in arousal x valence model. I changed as little as possible in original files.
 
-It is essential to install install torchdiffeq
+RegressionFlow:
+https://github.com/maciejzieba/regressionFlow
+
+BIRAFFE2:
+https://zenodo.org/record/5786104
+
+## Installation
+
+Project requires Nvidia GPU with CUDA capabilities.
+
+### Python packages
+
+It is essential to install install all requirements:
 ```
-git clone https://github.com/rtqichen/torchdiffeq.git
-cd torchdiffeq
-pip install -e . 
+pip install -r requirements.txt
 ```
+
+Setup on which project was tested:
+Ubuntu 22
+Python 3.10.12
+CUDA 11.8
+Nvidia Quadro M2000m
+
+Remember to match PyTorch with your CUDA and Python version. In requirements is specified version for CUDA 11.8.
+
 
 ### WEMD module
 
@@ -28,28 +47,57 @@ make
 As a result, `wemd/lib/libwemd.so` file should be created.
 
 
-## Toy example 
+## Project run
 
-The toy example provided in the paper can be run with the script:
+You need to create folder structures in root of this project and extract appropriate data:
 
-```bash
-python train_regression_SDD.py --log_name experiment_regression_flow_toy \
---lr 1e-3 --num_blocks 1 --batch_size 1000 --epochs \ 
-1000 --save_freq 5 --viz_freq 1 --log_freq 1 --gpu 0 --hyper_dims \
-128-32 --dims 32-32-32 --input_dim 1 --weight_decay 1e-5
-```
+Structure of directory should look like this:
 
-The script saves the model with `--save_freq` and visualize the results with `viz_freq` frequencies.
+---data\
+------BIRAFFE2\
+---------BIRAFFE2-gamepad\
+------------ *.csv files\
+---------BIRAFFE2-games\
+------------ *.csv files\
+---------BIRAFFE2-photo\
+------------ *.csv files\
+---------BIRAFFE2-metadata.csv
 
-The model can be loaded and tested using:
+/data/BIRAFFE2/BIRAFFE2-gamepad/\
+https://zenodo.org/records/5786104/files/BIRAFFE2-gamepad.zip
 
-```bash
-python test_toy.py --resume_checkpoint /experiment_regression_flow_toy/experiment_regression_flow_toy/checkpoint-latest.pt 
---num_blocks 1 --gpu 0 --hyper_dims 128-32 
---dims 32-32-32 --input_dim 1 
-```
+/data/BIRAFFE2/BIRAFFE2-games/\
+https://zenodo.org/records/5786104/files/BIRAFFE2-games.zip
 
-## Stanford Drone Dataset (SDD) 
+/data/BIRAFFE2/BIRAFFE2-photo/\
+https://zenodo.org/records/5786104/files/BIRAFFE2-photo.zip
+
+/data/BIRAFFE2/\
+https://zenodo.org/records/5786104/files/BIRAFFE2-metadata.csv
+
+
+Next step is data preparation. Run file (you need to go to this directory and run from there this script):\
+/biraffe2_helpers/biraffe2_prepare_data.py
+
+This script will generate 2 directories with prepared data:\
+/data/BIRAFFE2/test_data\
+/data/BIRAFFE2/train_data
+
+
+In order to run training, run this script from root directory:\
+train_regression_biraffe2.py
+
+In order to run testing, run this script from root directory:\
+test_biraffe2.py
+
+You can also play with some parameters - they are specified in file args.py. Some of the are hardcoded and to change them you have to modify them in code.
+
+## Instructions from original RegressionFlow repo
+
+Needed only for different datasets than BIRAFFE2. Some things doesn't work and I left them as they were. Settings (args) are hardcoded in order to much easier running, so there is no need to give parameters as cmd.
+
+
+### Stanford Drone Dataset (SDD) 
 
 The train and test data are located at:
 
@@ -59,23 +107,9 @@ https://lmb.informatik.uni-freiburg.de/resources/binaries/Multimodal_Future_Pred
 
 The datasets should be located in `data\SDD\train` and `data\SDD\test` locations. 
 
-You can run the training procedure with the script `train_regression_SDD.py` using the following settings:
+You can run the training procedure with the script `train_regression_SDD.py`.
 
-```
-train_regression_SDD.py --log_name "experiment_regression_flow_SSD" \
---lr 2e-5 --num_blocks 1 --batch_size 20 --epochs 100 --save_freq 1 \
---viz_freq 1 --log_freq 1 --gpu 0 --dims 128-128-128 --input_dim 2
-```
-
-Validation can be run using script `test_SDD` with parameters:
-
-```
-python test_SDD.py --data_dir /data/SDD \
---resume_checkpoint /experiment_regression_flow_SSD/checkpoint-latest.pt \
---num_blocks 1 --gpu 0 --dims 128-128-128 --input_dim 2
-```
-
-## NGSIM  Dataset
+### NGSIM  Dataset
 
 First, the data should be obtained from:
 
@@ -100,28 +134,7 @@ https://github.com/nachiket92/conv-social-pooling
 
 After processing files `TrainSet.mat`, `ValSet.mat`, and `TestSet.mat` should be created.  
 
-The model for this dataset can be trained with the following script:
-
-```bash
-python networks_regression_NGSIM.py 
---log_name experiment_regression_flow_NGSIM
---lr 1e-3 --num_blocks 1 --batch_size 10000
---epochs 100 --save_freq 1 --viz_freq 1 --log_freq
-1 --val_freq 6000 --gpu 0 --dims 16-16-16 --input_dim
-2 --weight_decay 1e-5 --data_dir /data/files/location
-```
-
-The evaluation for the dataset can be run using:
-
-```bash
-python test_NGSIM.py --data_dir/data/files/location
---resume_checkpoint
-/experiment_regression_flow_NGSIM/checkpoint-latest.pt
---num_blocks 1 --gpu 0 --dims 16-16-16
---input_dim 2
-```
-
-## CPI Dataset
+### CPI Dataset
 
 Synthetic Car-Pedestrian Interaction dataset introduced [here](https://github.com/lmb-freiburg/Multimodal-Future-Prediction), which can be generated with utilities in `cpi_generation` directory.
 
@@ -137,18 +150,4 @@ python CPI-generate.py --output_folder cpi/train --n_scenes 20000 --history 3 --
 python CPI-generate.py --output_folder cpi/test --n_scenes 54 --history 3 --n_gts 1000 --dist 20
 ```
 
-The model for this dataset can be trained with
-
-```
-train_regression_CPI.py --log_name "experiment_regression_flow_CPI" \
---lr 2e-5 --num_blocks 1 --batch_size 20 --epochs 100 --save_freq 1 \
---viz_freq 1 --log_freq 1 --gpu 0 --dims 128-128-128 --input_dim 2 --data_dir cpi_generation/cpi
-```
-
-To test it:
-
-```
-python test_CPI.py --data_dir cpi_generation/cpi \
---resume_checkpoint experiment_regression_flow_CPI/checkpoint-latest.pt \
---num_blocks 1 --gpu 0 --dims 128-128-128 --input_dim 2
-```
+The model for this dataset can be trained with train_regression_CPI.py.
