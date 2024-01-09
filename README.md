@@ -1,6 +1,5 @@
 # regressionFlow
 
-![demo](demo.gif)
 ## Installation 
 
 It is essential to install install torchdiffeq

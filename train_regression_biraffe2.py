@@ -159,7 +159,7 @@ def main():
 
     # override args in order to debug
     args.gpu = 0
-    args.log_name = "biraffe2_v2"
+    args.log_name = "biraffe2"
     args.data_dir = "data/BIRAFFE2"
 
     args.num_blocks = 1

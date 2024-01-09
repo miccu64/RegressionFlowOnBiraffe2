@@ -24,7 +24,7 @@ def get_grid_logprob(x, model):
 def main(args):
     args.gpu = 0
     args.num_blocks = 1
-    args.resume_checkpoint = "checkpoints/biraffe2_v2/checkpoint-latest.pt"
+    args.resume_checkpoint = "checkpoints/biraffe2/checkpoint-latest.pt"
     args.data_dir = "data/BIRAFFE2"
     args.dims = "16-16-16"
     args.hyper_dims = "64-16"
@@ -89,7 +89,7 @@ def main(args):
             print("multimod_emd", multimod_emd)
 
             out_of_range = ratio_points_out_of_range(y_pred)
-            print(f"Points not fitting square [-1, 1]: {np.mean(out_of_range):.4f}%")
+            print(f"Points not fitting square [-1, 1]: {np.mean(out_of_range):.1f}%")
             out_of_range_sum += out_of_range
 
             valence = y_pred[:, 0]

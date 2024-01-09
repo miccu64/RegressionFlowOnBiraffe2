@@ -29,10 +29,10 @@ class Biraffe2Dataset(Dataset):
         x_augmented = self.__add_random_noise(x)
         return x_augmented, y
 
-    def get_files(self, data_path: str) -> list[str]:
-        return glob.glob(os.path.join(data_path, "*.csv"))
-
     def __add_random_noise(self, data, noise_factor=0.01):
         noise = np.random.normal(loc=0, scale=noise_factor, size=len(data))
         augmented_data = data + noise
         return augmented_data
+
+    def get_files(self, data_path: str) -> list[str]:
+        return glob.glob(os.path.join(data_path, "*.csv"))
