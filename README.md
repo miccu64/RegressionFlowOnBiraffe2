@@ -19,13 +19,18 @@ It is essential to install install all requirements:
 pip install -r requirements.txt
 ```
 
-Setup on which project was tested:
-Ubuntu 22
-Python 3.10.12
-CUDA 11.8
+You also need these packages in these versions - install appropriate variations to match your CUDA version:\
+torch==2.1.0\
+torchvision==0.16.0
+
+
+Setup on which project was tested:\
+Ubuntu 22.04\
+Python 3.10.12\
+CUDA 11.8\
 Nvidia Quadro M2000m
 
-Remember to match PyTorch with your CUDA and Python version. In requirements is specified version for CUDA 11.8.
+Remember to match PyTorch with your CUDA and Python version. It is possible that project will run on newer package versions.
 
 
 ### WEMD module
@@ -90,7 +95,7 @@ train_regression_biraffe2.py
 In order to run testing, run this script from root directory:\
 test_biraffe2.py
 
-You can also play with some parameters - they are specified in file args.py. Some of the are hardcoded and to change them you have to modify them in code.
+You can also play with some parameters - they are specified in file args.py. Some of the are hardcoded and to change them you have to modify them in code. You can also change the paths for data and checkpoints as needed in hardcoded args.
 
 ## Instructions from original RegressionFlow repo
 
