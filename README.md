@@ -8,6 +8,16 @@ https://github.com/maciejzieba/regressionFlow
 BIRAFFE2:
 https://zenodo.org/record/5786104
 
+Main project files are:\
+train_regression_biraffe2.py\
+test_regression_biraffe2.py
+
+
+Project contains simple example of RegressionFlow train and test:\
+train_regression_my_1d.py\
+test_my_1d.py
+
+
 ## Installation
 
 Project requires Nvidia GPU with CUDA capabilities.

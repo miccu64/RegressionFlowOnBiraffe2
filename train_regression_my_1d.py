@@ -65,7 +65,7 @@ def main_worker(gpu, save_dir, args):
             model.train()
             recon_nats = model(x, y, optimizer, step, None)
             point_nats_avg_meter.update(recon_nats.item())
-            if step % args.log_freq == 0:
+            if (epoch + 1) % args.log_freq == 0:
                 duration = time.time() - start_time
                 start_time = time.time()
                 print("[Rank %d] Epoch %d Batch [%2d/%2d] Time [%3.2fs] PointNats %2.5f"
@@ -102,8 +102,8 @@ def main():
     args.gpu = 0
     args.log_name = 'my_test'
     args.lr = 2e-3
-    args.epochs = 2
-    args.batch_size = 512
+    args.epochs = 100
+    args.batch_size = 1024
     args.num_blocks = 1
     args.input_dim = 1
     args.viz_freq = 1

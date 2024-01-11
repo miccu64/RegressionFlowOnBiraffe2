@@ -39,7 +39,7 @@ def main(args):
     plt.ylim([-2, 2])
     plt.scatter(x, y)
     plt.savefig(os.path.join(save_dir, 'image.png'))
-    plt.clf()
+    plt.close()
 
 
 if __name__ == '__main__':
