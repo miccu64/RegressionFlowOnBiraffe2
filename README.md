@@ -12,11 +12,12 @@ Main project files are:\
 train_regression_biraffe2.py\
 test_regression_biraffe2.py
 
-
 Project contains simple example of RegressionFlow train and test:\
 train_regression_my_1d.py\
 test_my_1d.py
 
+Testing data visualisation with heatmap blobs:\
+![Heatmap blobs visualisation](SUB977-heatmap.gif)
 
 ## Installation
 
