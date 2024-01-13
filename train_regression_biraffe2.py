@@ -126,6 +126,7 @@ def main_worker(gpu, save_dir, args):
             model.eval()
             for bidx, data in enumerate(test_loader):
                 x, _, subject = data
+                subject = subject[0]
                 x = x.squeeze().float().to(args.gpu)
                 _, y_pred = model.decode(x, 10)
                 y_pred = y_pred.cpu().detach().numpy()
@@ -133,13 +134,16 @@ def main_worker(gpu, save_dir, args):
                 valence = y_pred[:, 0]
                 arousal = y_pred[:, 1]
 
+                plt.title(subject)
                 lim = [-1.1, 1.1]
                 plt.xlim(lim)
                 plt.ylim(lim)
+                plt.xlabel('Valence')
+                plt.ylabel('Arousal')
                 plt.scatter(valence, arousal)
 
                 filepath = os.path.join(
-                    save_dir, "images", "result_epoch%d_%s.png" % (epoch, subject[0])
+                    save_dir, "images", "result_epoch%d_%s.png" % (epoch, subject)
                 )
                 plt.savefig(filepath, format="png", bbox_inches="tight")
                 plt.close()

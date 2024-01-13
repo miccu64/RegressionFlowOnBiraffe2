@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 
-def draw_biraffe2_heatmap(x_valence: [float], y_arousal: [float], log_pred, X, Y, save_path: str):
+def draw_biraffe2_heatmap(x_valence: [float], y_arousal: [float], log_pred, X, Y, save_path: str, title: str):
     def transparent_cmap(cmap, N=255):
         "Copy colormap and set alpha values"
         mycmap = cmap
@@ -15,9 +15,12 @@ def draw_biraffe2_heatmap(x_valence: [float], y_arousal: [float], log_pred, X, Y
     vmin_diff = np.min(Z_diff)
 
     figure, ax = plt.subplots()
+    plt.title(title)
     values_range = [-1.1, 1.1]
     plt.xlim(values_range)
     plt.ylim(values_range)
+    plt.xlabel('Valence')
+    plt.ylabel('Arousal')
     plt.scatter(x_valence, y_arousal, color=(1.0, 0.5, 0.0))
 
     cmap_diff = transparent_cmap(plt.cm.viridis)

@@ -104,6 +104,7 @@ def main(args):
                 X=X,
                 Y=Y,
                 save_path=os.path.join(save_path, f"{subject}-{row}-heatmap.png"),
+                title=f"{subject}-{row}"
             )
 
             result_row = {
